@@ -26,6 +26,14 @@ android {
     }
 
     buildTypes {
+        debug {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
         release {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
@@ -51,5 +59,5 @@ dependencies {
     compileOnly("com.squareup.okhttp3:okhttp:4.12.0")
     compileOnly("uy.kohesive.injekt:injekt-core:1.16.1")
     compileOnly("androidx.preference:preference:1.2.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+    compileOnly("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
 }

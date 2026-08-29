@@ -1,0 +1,3 @@
+-keep class eu.kanade.tachiyomi.extension.** { *; }
+-keepclassmembers class eu.kanade.tachiyomi.extension.** { *; }
+-keep class * implements eu.kanade.tachiyomi.source.Source { *; }

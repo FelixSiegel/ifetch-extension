@@ -1,4 +1,4 @@
-name: Build and Publish Mihon Extension
+name: Build and Publish Extension
 
 on:
   release:
@@ -29,7 +29,6 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           VERSION_CODE: ${{ github.run_number }}
-          VERSION_NAME: ${{ github.event.release.tag_name }}
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease
@@ -39,20 +38,37 @@ jobs:
           RAW_VERSION="${{ github.event.release.tag_name }}"
           CLEAN_VERSION="${RAW_VERSION#v}"
 
-          # SHA256 fingerprint generated from release.jks
+          mkdir -p public/apk
+
           FINGERPRINT="83b44f5565189b5b103e6b0b5c1aa37414082e857bbb9e5be3e0798eefdbfbf6"
 
-          echo "{\"meta\":{\"name\":\"iFetch Repo\",\"shortName\":\"iFetch\",\"website\":\"https://github.com/${{ github.repository }}\",\"signingKeyFingerprint\":\"$FINGERPRINT\"}}" > repo.json
+          echo "{\"meta\":{\"name\":\"iFetch Repo\",\"shortName\":\"iFetch\",\"website\":\"https://github.com/${{ github.repository }}\",\"signingKeyFingerprint\":\"$FINGERPRINT\"}}" > public/repo.json
 
-          echo "[{\"name\":\"iFetch API\",\"pkg\":\"eu.kanade.tachiyomi.extension.en.ifetch\",\"apk\":\"../ifetch.apk\",\"lang\":\"en\",\"code\":${{ github.run_number }},\"version\":\"$CLEAN_VERSION\",\"nsfw\":0,\"hasReadme\":0,\"hasChangelog\":0,\"sources\":[{\"id\":\"2265008544838634865\",\"name\":\"iFetch API\",\"lang\":\"en\",\"baseUrl\":\"http://192.168.2.18:8080\"}]}]" > index.min.json
+          echo "[{\"name\":\"iFetch API\",\"pkg\":\"eu.kanade.tachiyomi.extension.en.ifetch\",\"apk\":\"ifetch.apk\",\"lang\":\"en\",\"code\":${{ github.run_number }},\"version\":\"$CLEAN_VERSION\",\"nsfw\":0,\"hasReadme\":0,\"hasChangelog\":0,\"sources\":[{\"id\":\"2265008544838634865\",\"name\":\"iFetch API\",\"lang\":\"en\",\"baseUrl\":\"http://192.168.2.18:8080\"}]}]" > public/index.min.json
 
-          cp build/outputs/apk/release/*-release.apk ifetch.apk
+          cp build/outputs/apk/release/*-release.apk public/apk/ifetch.apk
+          cp public/apk/ifetch.apk ./ifetch.apk
 
-      - name: Upload Release Assets
+      - name: Upload APK to GitHub Release
         uses: softprops/action-gh-release@v3
-        if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: |
-            repo.json
-            index.min.json
-            ifetch.apk
+          files: ifetch.apk
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./public
+
+  deploy:
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
