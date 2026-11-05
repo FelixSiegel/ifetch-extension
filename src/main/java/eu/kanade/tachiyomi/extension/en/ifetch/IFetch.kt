@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.extension.en.ifetch
 import android.app.Application
 import android.content.SharedPreferences
 import androidx.preference.EditTextPreference
+import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.source.ConfigurableSource
@@ -22,6 +23,7 @@ import okhttp3.Response
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
+@Suppress("unused")
 class IFetch : HttpSource(), ConfigurableSource {
 
     override val name = "iFetch API"
@@ -30,7 +32,7 @@ class IFetch : HttpSource(), ConfigurableSource {
         get() = preferences.getString(PREF_URL_KEY, PREF_URL_DEFAULT)!!
 
     override val lang = "en"
-    override val supportsLatest = false
+    override val supportsLatest = true
 
     private val preferences: SharedPreferences by lazy {
         Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
@@ -41,12 +43,7 @@ class IFetch : HttpSource(), ConfigurableSource {
     override fun headersBuilder(): Headers.Builder = Headers.Builder()
         .add("User-Agent", "Mihon/iFetch")
 
-    // Search Manga
-    override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        return GET("$baseUrl/api/search?q=$query", headers)
-    }
-
-    override fun searchMangaParse(response: Response): MangasPage {
+    private fun parseMangaList(response: Response, hasNextPage: Boolean? = null): MangasPage {
         val body = response.body?.string() ?: return MangasPage(emptyList(), false)
         val array = json.parseToJsonElement(body).jsonArray
 
@@ -59,19 +56,30 @@ class IFetch : HttpSource(), ConfigurableSource {
             }
         }
 
-        return MangasPage(mangas, false) // No pagination
+        return MangasPage(mangas, hasNextPage ?: mangas.isNotEmpty())
     }
 
-    // TODO: Popular Manga (just show a basic query for now)
+    // Search Manga
+    override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
+        return GET("$baseUrl/api/search?q=$query", headers)
+    }
+
+    override fun searchMangaParse(response: Response): MangasPage = parseMangaList(response, hasNextPage = false)
+
+    // Popular Manga
     override fun popularMangaRequest(page: Int): Request {
-        return GET("$baseUrl/api/search?q=a", headers)
+        return GET("$baseUrl/api/popular?page=$page", headers)
     }
 
-    override fun popularMangaParse(response: Response): MangasPage = searchMangaParse(response)
+    override fun popularMangaParse(response: Response): MangasPage = parseMangaList(response, hasNextPage = false)
 
-    // TODO: Latest Manga (not supported, but requires implementation)
-    override fun latestUpdatesRequest(page: Int): Request = popularMangaRequest(page)
-    override fun latestUpdatesParse(response: Response): MangasPage = popularMangaParse(response)
+    // Latest / Recent Manga
+    override fun latestUpdatesRequest(page: Int): Request {
+        val route = preferences.getString(PREF_LATEST_ROUTE_KEY, PREF_LATEST_ROUTE_DEFAULT)!!
+        return GET("$baseUrl$route?page=$page", headers)
+    }
+
+    override fun latestUpdatesParse(response: Response): MangasPage = parseMangaList(response)
 
     // Manga Details
     override fun mangaDetailsRequest(manga: SManga): Request {
@@ -155,10 +163,23 @@ class IFetch : HttpSource(), ConfigurableSource {
             dialogTitle = "API Base URL"
         }
         screen.addPreference(urlPref)
+
+        val latestRoutePref = ListPreference(screen.context).apply {
+            key = PREF_LATEST_ROUTE_KEY
+            title = "Recent / Latest tab route"
+            entries = arrayOf("Latest updates (/api/latest)", "Newly added (/api/new)")
+            entryValues = arrayOf("/api/latest", "/api/new")
+            setDefaultValue(PREF_LATEST_ROUTE_DEFAULT)
+            summary = "%s"
+        }
+        screen.addPreference(latestRoutePref)
     }
 
     companion object {
         private const val PREF_URL_KEY = "pref_api_url"
         private const val PREF_URL_DEFAULT = "http://10.0.2.2:8080" // Android emulator loopback
+
+        private const val PREF_LATEST_ROUTE_KEY = "pref_latest_route"
+        private const val PREF_LATEST_ROUTE_DEFAULT = "/api/latest"
     }
 }

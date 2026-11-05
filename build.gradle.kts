@@ -18,10 +18,13 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file("release.jks")
-            storePassword = System.getenv("KEYSTORE_PASSWORD")
-            keyAlias = System.getenv("KEY_ALIAS")
-            keyPassword = System.getenv("KEY_PASSWORD")
+            val keystoreFile = file("release.jks")
+            if (keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
         }
     }
 
@@ -35,7 +38,10 @@ android {
             )
         }
         release {
-            signingConfig = signingConfigs.getByName("release")
+            val releaseConfig = signingConfigs.getByName("release")
+            if (releaseConfig.storeFile?.exists() == true) {
+                signingConfig = releaseConfig
+            }
             isMinifyEnabled = false
             isShrinkResources = false
             proguardFiles(
@@ -51,6 +57,9 @@ android {
     kotlinOptions {
         jvmTarget = "1.8"
     }
+    lint {
+        disable += "GradleDependency"
+    }
 }
 
 dependencies {
@@ -59,5 +68,5 @@ dependencies {
     compileOnly("com.squareup.okhttp3:okhttp:4.12.0")
     compileOnly("uy.kohesive.injekt:injekt-core:1.16.1")
     compileOnly("androidx.preference:preference:1.2.1")
-    compileOnly("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+    compileOnly("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 }
