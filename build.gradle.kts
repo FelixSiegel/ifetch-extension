@@ -12,8 +12,8 @@ android {
         applicationId = "eu.kanade.tachiyomi.extension.en.ifetch"
         minSdk = 26
         targetSdk = 34
-        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
-        versionName = System.getenv("VERSION_NAME") ?: "1.0"
+        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 2
+        versionName = System.getenv("VERSION_NAME") ?: "1.1.0"
     }
 
     signingConfigs {
